@@ -1,5 +1,6 @@
 ﻿# inventory-management
-
+##live demo
+https://inventory-project-907dc.web.app
 # Welding Inventory Management System
 
 ## 📌 Project Description
@@ -32,3 +33,4 @@ This project is a web-based Inventory Management System developed to manage weld
 
 Adithya Das.K
 Department of Information Technology
+
