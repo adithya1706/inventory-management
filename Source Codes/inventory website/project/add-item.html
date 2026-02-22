@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ✅ Set character encoding and responsive layout -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Item</title>
+
+  <!-- ✅ Firebase SDKs for app and Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- ✅ Apply dark mode on page load if theme is stored as dark -->
+  <script>
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark-mode");
+    }
+  </script>
+
+  <style>
+    /* ✅ Base styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      color: #000;
+      padding: 40px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* ✅ Override styles for dark mode */
+    .dark-mode body {
+      background-color: #1e1e1e;
+      color: #fff;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    /* ✅ Form container styling */
+    form {
+      max-width: 500px;
+      margin: auto;
+    }
+
+    /* ✅ Input and textarea styles */
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background-color: #ffffff;
+      color: #000000;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      background-color: #ffffff;
+    }
+
+    /* ✅ Dark mode input and textarea styles */
+    .dark-mode input,
+    .dark-mode textarea {
+      background-color: #2d2d2d !important;
+      color: #ffffff !important;
+      border: 1px solid #777 !important;
+      caret-color: #ffffff !important;
+    }
+
+    .dark-mode input:focus,
+    .dark-mode textarea:focus {
+      background-color: #2d2d2d !important;
+      color: #ffffff !important;
+      border: 1px solid #aaa !important;
+      outline: none !important;
+    }
+
+    /* ✅ Fix autofill styles in Chrome when in dark mode */
+    .dark-mode input:-webkit-autofill,
+    .dark-mode input:-webkit-autofill:focus,
+    .dark-mode textarea:-webkit-autofill,
+    .dark-mode textarea:-webkit-autofill:focus {
+      box-shadow: 0 0 0px 1000px #2d2d2d inset !important;
+      -webkit-text-fill-color: #ffffff !important;
+      caret-color: #ffffff !important;
+    }
+
+    /* ✅ Submit button styling */
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      background-color: #008000;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
+    /* ✅ Toast message styling */
+    .success-toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9999;
+    }
+
+    .success-toast.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ✅ Link to return to inventory list */
+    a {
+      text-align: center;
+      display: block;
+      margin-top: 10px;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- ✅ Page heading -->
+  <h2>Add New Inventory Item</h2>
+
+  <!-- ✅ Item input form -->
+  <form onsubmit="submitItem(event)">
+    <input id="itemName" type="text" placeholder="Item Name" required>
+    <input id="partNo" type="text" placeholder="Part Number" required>
+    <input id="itemQty" type="number" placeholder="Quantity" required>
+    <input id="itemSize" type="text" placeholder="Size">
+    <input id="itemLocation" type="text" placeholder="Location" required>
+    <textarea id="itemDesc" placeholder="Description"></textarea>
+    <button type="submit">Submit Item</button>
+    <a href="inventory.html">&larr; Back to Inventory list</a>
+  </form>
+
+  <!-- ✅ Toast for success message -->
+  <div class="success-toast" id="toast">Item added successfully!</div>
+
+  <script>
+    // ✅ Firebase configuration and Firestore reference
+    const firebaseConfig = {
+      apiKey: "AIzaSyDznX-G5fsyep_BtSTOxSX6dk1Rky65vaU",
+      authDomain: "weldinginventory.firebaseapp.com",
+      projectId: "weldinginventory"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ✅ Function to show success toast
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+        window.location.href = "inventory.html";
+      }, 1200);
+    }
+
+    // ✅ Add new item to Firestore
+    async function submitItem(e) {
+      e.preventDefault();
+
+      const name = document.getElementById("itemName").value.trim();
+      const partNo = document.getElementById("partNo").value.trim();
+      const qtyValue = document.getElementById("itemQty").value.trim();
+      const qty = qtyValue ? parseInt(qtyValue) : 0;
+      const size = document.getElementById("itemSize").value.trim();
+      const location = document.getElementById("itemLocation").value.trim();
+      const desc = document.getElementById("itemDesc").value.trim();
+
+      // ✅ Check required fields before saving
+      if (!name || !partNo || !qty || !location || isNaN(qty)) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+
+      // ✅ Save item to Firestore
+      await db.collection("items").add({
+        name, partNo, qty, size, location, desc,
+        created: new Date()
+      });
+
+      showToast("Item added successfully!");
+    }
+  </script>
+</body>
+</html>

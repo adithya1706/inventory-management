@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Inventory System</title>
+  <style>
+    /* Base body styling */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f2f5;
+      margin: 0;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* Login container */
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+
+    /* Header text */
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* Inputs and login button styling */
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 16px;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    /* Submit button style */
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    /* Dark Mode Styles */
+    body.dark-mode {
+      background-color: #222;
+      color: white;
+    }
+
+    body.dark-mode .login-box {
+      background-color: #333;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+
+    body.dark-mode input,
+    body.dark-mode button {
+      background-color: #444;
+      color: white;
+      border: 1px solid #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login form container -->
+  <div class="login-box">
+    <h2>Login</h2>
+    <!-- Form submission triggers login() -->
+    <form onsubmit="return login()">
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <script>
+    // User credentials list
+    const users = [
+      { username: "admin", password: "admin123" },
+      { username: "laser", password: "laser@2024" },
+      { username: "welduser", password: "weld#001" }
+    ];
+
+    // Login function to authenticate user
+    function login() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      // Match credentials with stored list
+      const matchedUser = users.find(user => user.username === username && user.password === password);
+
+      // Redirect to inventory if success
+      if (matchedUser) {
+        window.location.href = "inventory.html";
+      } else {
+        alert("Invalid username or password.");
+      }
+      return false; // Prevent default form submission
+    }
+
+    // Apply saved dark mode theme on page load
+    window.onload = () => {
+      if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark-mode");
+      }
+    };
+  </script>
+</body>
+</html>

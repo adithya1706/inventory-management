@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ✅ Basic Meta Setup -->
+  <meta charset="UTF-8">
+  <title>Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- ✅ Apply saved theme before rendering -->
+  <script>
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark-mode");
+    }
+  </script>
+
+  <!-- ✅ Firebase Initialization Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ✅ General Page Styling */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 60px auto 40px;
+      padding: 20px;
+    }
+
+    /* ✅ Header with Sidebar Toggle and Title */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    #sidebarToggle {
+      font-size: 26px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    header h2 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    /* ✅ Top Bar with Search and Buttons */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .top-bar .right-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    #search {
+      padding: 10px;
+      width: 200px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    #addItemBtn, #lowStockBtn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #addItemBtn {
+      background-color: #28a745;
+      color: white;
+    }
+
+    #lowStockBtn {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    #addItemBtn:hover, #lowStockBtn:hover {
+      opacity: 0.85;
+      transform: scale(1.03);
+    }
+
+    /* ✅ Table Styles */
+    .table-container {
+      overflow-x: auto;
+      background: white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    tr:hover td {
+      background-color: #f0f0f0;
+    }
+
+    /* ✅ Update Button Style */
+    .updateBtn {
+      background-color: #ff9800;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .updateBtn:hover {
+      opacity: 0.85;
+      transform: scale(1.03);
+    }
+
+    /* ✅ Sidebar Styles */
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 200px;
+      height: 100%;
+      background-color: #ddd;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+      transform: translateX(-220px);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    #sidebar.visible {
+      transform: translateX(0);
+    }
+
+    #sidebar button {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: #555;
+      color: white;
+    }
+
+    #sidebar button:hover {
+      background-color: #333;
+    }
+
+    /* ✅ Overlay to close Sidebar */
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.3);
+      z-index: 999;
+      display: none;
+    }
+
+    #overlay.show {
+      display: block;
+    }
+
+    /* ✅ Logout Confirmation Modal */
+    #logoutModal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      z-index: 2000;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    #logoutModal p {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    #logoutModal button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 0 10px;
+    }
+
+    #logoutModal .yes {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    #logoutModal .no {
+      background-color: #555;
+      color: white;
+    }
+
+    /* ✅ Dark Mode Overrides */
+    .dark-mode body {
+      background-color: #222;
+      color: white;
+    }
+
+    .dark-mode table,
+    .dark-mode input {
+      background-color: #333;
+      color: white;
+    }
+
+    .dark-mode tr:hover td {
+      background-color: #2e2e2e;
+      color: #ddd;
+    }
+
+    .dark-mode #sidebar {
+      background-color: #444;
+    }
+
+    .dark-mode #logoutModal {
+      background-color: #2d2d2d;
+      color: white;
+    }
+
+    .dark-mode #logoutModal .no {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✅ Sidebar Panel -->
+  <div id="sidebar">
+    <button onclick="logout()">Logout</button>
+    <button onclick="toggleTheme()">🌓 Toggle Theme</button>
+  </div>
+
+  <!-- ✅ Click Overlay to Hide Sidebar -->
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- ✅ Logout Confirmation Popup -->
+  <div id="logoutModal">
+    <p>Are you sure you want to logout?</p>
+    <button class="yes" onclick="confirmLogout()">Yes</button>
+    <button class="no" onclick="closeLogoutModal()">No</button>
+  </div>
+
+  <!-- ✅ Main Content -->
+  <main>
+    <header>
+      <div class="header-left">
+        <div id="sidebarToggle">☰</div>
+        <h2>Inventory List</h2>
+      </div>
+    </header>
+
+    <!-- ✅ Top Controls -->
+    <div class="top-bar">
+      <input type="text" id="search" placeholder="🔍 Search item..." oninput="searchItems()">
+      <div class="right-buttons">
+        <button id="addItemBtn" onclick="location.href='add-item.html'">+ Add Item</button>
+        <button id="lowStockBtn" onclick="showLowStock()">⚠ Low Stock</button>
+      </div>
+    </div>
+
+    <!-- ✅ Inventory Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Part No</th>
+            <th>Name</th>
+            <th>Qty</th>
+            <th>Size</th>
+            <th>Location</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="itemTable"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    // ✅ Firebase Config and Init
+    const firebaseConfig = {
+      apiKey: "AIzaSyDznX-G5fsyep_BtSTOxSX6dk1Rky65vaU",
+      authDomain: "weldinginventory.firebaseapp.com",
+      projectId: "weldinginventory"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let lowStockActive = false;
+
+    // ✅ Load all or low stock items
+    async function loadItems(filterLowStock = false) {
+      const table = document.getElementById("itemTable");
+      table.innerHTML = "";
+      const snapshot = await db.collection("items").orderBy("created", "desc").get();
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (!filterLowStock || data.qty < 10) {
+          const row = table.insertRow();
+          row.innerHTML = `
+            <td>${data.partNo || ""}</td>
+            <td>${data.name || ""}</td>
+            <td>${data.qty || ""}</td>
+            <td>${data.size || ""}</td>
+            <td>${data.location || ""}</td>
+            <td>${data.desc || ""}</td>
+            <td><button class="updateBtn" onclick="updateItem('${doc.id}')">Update</button></td>
+          `;
+        }
+      });
+    }
+
+    // ✅ Toggle Low Stock View
+    function showLowStock() {
+      lowStockActive = !lowStockActive;
+      loadItems(lowStockActive);
+      document.getElementById("lowStockBtn").textContent = lowStockActive ? "Show All" : "⚠ Low Stock";
+    }
+
+    // ✅ Navigate to Update Page with Item ID
+    function updateItem(id) {
+      localStorage.setItem("editItemId", id);
+      window.location.href = "update-item.html";
+    }
+
+    // ✅ Search Functionality
+    function searchItems() {
+      const input = document.getElementById("search").value.toLowerCase();
+      const rows = document.querySelectorAll("#itemTable tr");
+      rows.forEach(row => {
+        const partNo = row.cells[0].innerText.toLowerCase();
+        const name = row.cells[1].innerText.toLowerCase();
+        const match = partNo.includes(input) || name.includes(input);
+        row.style.display = match ? "" : "none";
+      });
+    }
+
+    // ✅ Show Logout Modal
+    function logout() {
+      document.getElementById("logoutModal").style.display = "block";
+    }
+
+    // ✅ Confirm Logout
+    function confirmLogout() {
+      window.location.href = "login.html";
+    }
+
+    // ✅ Close Logout Modal
+    function closeLogoutModal() {
+      document.getElementById("logoutModal").style.display = "none";
+    }
+
+    // ✅ Toggle Light/Dark Theme
+    function toggleTheme() {
+      document.documentElement.classList.toggle("dark-mode");
+      const theme = document.documentElement.classList.contains("dark-mode") ? "dark" : "light";
+      localStorage.setItem("theme", theme);
+    }
+
+    // ✅ Sidebar Toggle Logic
+    document.getElementById("sidebarToggle").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.add("visible");
+      document.getElementById("overlay").classList.add("show");
+    });
+
+    function closeSidebar() {
+      document.getElementById("sidebar").classList.remove("visible");
+      document.getElementById("overlay").classList.remove("show");
+    }
+
+    // ✅ Load Items on Page Load
+    window.onload = () => {
+      if (localStorage.getItem("theme") === "dark") {
+        document.documentElement.classList.add("dark-mode");
+      }
+      loadItems();
+    };
+  </script>
+</body>
+</html>

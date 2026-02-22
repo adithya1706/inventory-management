@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ✅ Meta setup -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Item</title>
+
+  <!-- ✅ Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- ✅ Apply saved dark mode before rendering -->
+  <script>
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark-mode");
+    }
+  </script>
+
+  <style>
+    /* ✅ Base styling for page */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      color: #000;
+      padding: 40px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* ✅ Apply dark theme to body */
+    .dark-mode body {
+      background-color: #1e1e1e;
+      color: #fff;
+    }
+
+    /* ✅ Heading */
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    /* ✅ Form container */
+    form {
+      max-width: 500px;
+      margin: auto;
+    }
+
+    /* ✅ Style for all inputs, textarea and button */
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+
+    /* ✅ Input fields */
+    input, textarea {
+      border: 1px solid #ccc;
+      background-color: #fff;
+      color: #000;
+    }
+
+    /* ✅ Input focus remove default outline */
+    input:focus, textarea:focus {
+      outline: none;
+    }
+
+    /* ✅ Dark mode styles for inputs and textarea */
+    .dark-mode input,
+    .dark-mode textarea {
+      background-color: #2d2d2d !important;
+      color: #fff !important;
+      border: 1px solid #777 !important;
+      caret-color: #fff !important;
+    }
+
+    /* ✅ Submit button style */
+    button {
+      background-color: #008000;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    /* ✅ Button hover effect */
+    button:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
+    /* ✅ Toast notification styling */
+    .success-toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9999;
+    }
+
+    /* ✅ Show toast */
+    .success-toast.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ✅ Back link to inventory */
+    a {
+      text-align: center;
+      display: block;
+      margin-top: 10px;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    /* ✅ Hover underline on link */
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* ✅ Link color for dark mode */
+    .dark-mode a {
+      color: #62aaff;
+    }
+  </style>
+</head>
+<body>
+  <!-- ✅ Title -->
+  <h2>Add New Inventory Item</h2>
+
+  <!-- ✅ Form to collect item data -->
+  <form onsubmit="submitItem(event)">
+    <input id="itemName" type="text" placeholder="Item Name" required>
+    <input id="partNo" type="text" placeholder="Part Number" required>
+    <input id="itemQty" type="number" placeholder="Quantity" required>
+    <input id="itemSize" type="text" placeholder="Size">
+    <input id="itemLocation" type="text" placeholder="Location" required>
+    <textarea id="itemDesc" placeholder="Description"></textarea>
+    <input id="itemTag" type="text" placeholder="Tag (e.g. #laser)" required>
+    <button type="submit">Submit Item</button>
+    <a href="inventory.html">&larr; Back to Inventory list</a>
+  </form>
+
+  <!-- ✅ Toast box -->
+  <div class="success-toast" id="toast">Item added successfully!</div>
+
+  <!-- ✅ Firebase logic for submitting form -->
+  <script>
+    // ✅ Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDznX-G5fsyep_BtSTOxSX6dk1Rky65vaU",
+      authDomain: "weldinginventory.firebaseapp.com",
+      projectId: "weldinginventory"
+    };
+
+    // ✅ Initialize Firebase App and Firestore DB
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ✅ Show success toast and redirect
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+        window.location.href = "inventory.html";
+      }, 1200);
+    }
+
+    // ✅ Submit item to Firestore
+    async function submitItem(e) {
+      e.preventDefault(); // prevent form reload
+
+      const name = document.getElementById("itemName").value.trim();
+      const partNo = document.getElementById("partNo").value.trim();
+      const qty = parseInt(document.getElementById("itemQty").value.trim(), 10);
+      const size = document.getElementById("itemSize").value.trim();
+      const location = document.getElementById("itemLocation").value.trim();
+      const desc = document.getElementById("itemDesc").value.trim();
+      let tag = document.getElementById("itemTag").value.trim();
+
+      // ✅ Validate inputs
+      if (!name || !partNo || isNaN(qty) || !location || !tag) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+
+      // ✅ Remove hash from tag if exists
+      if (tag.startsWith("#")) {
+        tag = tag.substring(1);
+      }
+
+      // ✅ Add to Firestore collection "items"
+      await db.collection("items").add({
+        name, partNo, qty, size, location, desc, tag,
+        created: new Date()
+      });
+
+      // ✅ Show confirmation and redirect
+      showToast("Item added successfully!");
+    }
+  </script>
+</body>
+</html>

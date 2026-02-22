@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <script>
+    if (localStorage.getItem("loggedIn") !== "true") {
+      window.location.replace("index.html");
+    }
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark-mode");
+    }
+  </script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 60px auto 40px;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    #sidebarToggle {
+      font-size: 26px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    header h2 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .top-bar .right-buttons {
+      display: flex;
+      gap: 10px;
+      position: relative;
+    }
+
+    #search {
+      padding: 10px;
+      width: 200px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    #addItemBtn, #lowStockBtn, #exportBtn {
+      width: 120px;
+      height: 42px;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    #addItemBtn { background-color: #28a745; color: white; }
+    #lowStockBtn { background-color: #dc3545; color: white; }
+    #exportBtn { background-color: #007bff; color: white; }
+
+    #addItemBtn:hover, #lowStockBtn:hover, #exportBtn:hover {
+      opacity: 0.85;
+      transform: scale(1.03);
+    }
+
+    #exportDropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 999;
+    }
+
+    #exportDropdown div {
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    #exportDropdown div:hover {
+      background-color: #f0f0f0;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      background: white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    tr:hover td {
+      background-color: #f0f0f0;
+    }
+
+    .updateBtn {
+      background-color: #ff9800;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .updateBtn:hover {
+      opacity: 0.85;
+      transform: scale(1.03);
+    }
+
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 200px;
+      height: 100%;
+      background-color: #ddd;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+      transform: translateX(-220px);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    #sidebar.visible {
+      transform: translateX(0);
+    }
+
+    #sidebar button {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: #555;
+      color: white;
+    }
+
+    #sidebar button:hover {
+      background-color: #333;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.3);
+      z-index: 999;
+      display: none;
+    }
+
+    #overlay.show {
+      display: block;
+    }
+
+    #logoutModal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      z-index: 2000;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    #logoutModal p {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    #logoutModal button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 0 10px;
+    }
+
+    #logoutModal .yes { background-color: #dc3545; color: white; }
+    #logoutModal .no { background-color: #555; color: white; }
+
+    .dark-mode body { background-color: #222; color: white; }
+    .dark-mode table, .dark-mode input { background-color: #333; color: white; }
+    .dark-mode tr:hover td { background-color: #2e2e2e; color: #ddd; }
+    .dark-mode #sidebar { background-color: #444; }
+    .dark-mode #logoutModal { background-color: #2d2d2d; color: white; }
+    .dark-mode #logoutModal .no { background-color: #444; }
+    .dark-mode #exportDropdown { background-color: #333; color: white; border: 1px solid #666; }
+    .dark-mode #exportDropdown div:hover { background-color: #444; }
+
+    @media screen and (max-width: 600px) {
+      header h2 { font-size: 20px; }
+      #search { width: 100%; }
+      .top-bar { flex-direction: column; align-items: stretch; }
+      .right-buttons { flex-direction: column; width: 100%; }
+      #addItemBtn, #lowStockBtn, #exportBtn { width: 100%; font-size: 16px; }
+      th, td { font-size: 14px; padding: 8px; }
+      .updateBtn { padding: 5px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <button onclick="logout()">Logout</button>
+    <button onclick="toggleTheme()">🌓 Toggle Theme</button>
+  </div>
+
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <div id="logoutModal">
+    <p>Are you sure you want to logout?</p>
+    <button class="yes" onclick="confirmLogout()">Yes</button>
+    <button class="no" onclick="closeLogoutModal()">No</button>
+  </div>
+
+  <main>
+    <header>
+      <div class="header-left">
+        <div id="sidebarToggle">☰</div>
+        <h2>Inventory List</h2>
+      </div>
+    </header>
+
+    <div class="top-bar">
+      <input type="text" id="search" placeholder="Search item..." oninput="searchItems()">
+      <div class="right-buttons">
+        <button id="addItemBtn" onclick="location.href='add-item.html'">+ Add Item</button>
+        <button id="lowStockBtn" onclick="showLowStock()">⚠ Low Stock</button>
+        <div>
+          <button id="exportBtn" onclick="toggleExportDropdown()">Export List ></button>
+          <div id="exportDropdown">
+            <div onclick="exportTable(false)">Full List</div>
+            <div onclick="exportTable(true)">Low Stock</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Part No</th>
+            <th>Name</th>
+            <th>Qty</th>
+            <th>Size</th>
+            <th>Location</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="itemTable"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDznX-G5fsyep_BtSTOxSX6dk1Rky65vaU",
+      authDomain: "weldinginventory.firebaseapp.com",
+      projectId: "weldinginventory"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let lowStockActive = false;
+
+    async function loadItems(filterLowStock = false) {
+      const table = document.getElementById("itemTable");
+      table.innerHTML = "";
+      const snapshot = await db.collection("items").orderBy("created", "desc").get();
+      let index = 1;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const tag = (data.tag || "").toLowerCase();
+        const row = table.insertRow();
+        row.setAttribute("data-tag", tag);
+        if (!filterLowStock || data.qty < 10) {
+          row.innerHTML = `
+            <td>${index++}</td>
+            <td>${data.partNo || ""}</td>
+            <td>${data.name || ""}</td>
+            <td>${data.qty !== undefined ? data.qty : ""}</td>
+            <td>${data.size || ""}</td>
+            <td>${data.location || ""}</td>
+            <td>${(data.desc || "").match(/.{1,40}/g)?.join("<br>") || ""}</td>
+            <td><button class="updateBtn" onclick="updateItem('${doc.id}')">Update</button></td>
+          `;
+        }
+      });
+    }
+
+    function searchItems() {
+      const input = document.getElementById("search").value.toLowerCase().trim();
+      const rows = document.querySelectorAll("#itemTable tr");
+
+      rows.forEach(row => {
+        const partNo = row.cells[1].innerText.toLowerCase();
+        const name = row.cells[2].innerText.toLowerCase();
+        const tag = row.getAttribute("data-tag") || "";
+        let match = false;
+
+        if (input.startsWith("#")) {
+          const tagQuery = input.slice(1).trim();
+          match = tag === tagQuery;
+        } else {
+          match = partNo.includes(input) || name.includes(input);
+        }
+
+        row.style.display = match ? "" : "none";
+      });
+    }
+
+    function updateItem(id) {
+      localStorage.setItem("editItemId", id);
+      window.location.href = "update-item.html";
+    }
+
+    function showLowStock() {
+      lowStockActive = !lowStockActive;
+      loadItems(lowStockActive);
+      document.getElementById("lowStockBtn").textContent = lowStockActive ? "Show All" : "⚠ Low Stock";
+    }
+
+    function logout() {
+      document.getElementById("logoutModal").style.display = "block";
+    }
+
+    function confirmLogout() {
+      localStorage.removeItem("loggedIn");
+      window.location.replace("index.html");
+    }
+
+    function closeLogoutModal() {
+      document.getElementById("logoutModal").style.display = "none";
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle("dark-mode");
+      const theme = document.documentElement.classList.contains("dark-mode") ? "dark" : "light";
+      localStorage.setItem("theme", theme);
+    }
+
+    document.getElementById("sidebarToggle").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.add("visible");
+      document.getElementById("overlay").classList.add("show");
+    });
+
+    function closeSidebar() {
+      document.getElementById("sidebar").classList.remove("visible");
+      document.getElementById("overlay").classList.remove("show");
+    }
+
+    function toggleExportDropdown() {
+      const dropdown = document.getElementById("exportDropdown");
+      dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+    }
+
+    async function exportTable(filterLowStock) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+doc.text("Inventory", 105, 15, { align: "center" });
+
+doc.setFontSize(14);
+doc.text(filterLowStock ? "Low Stock List" : "Full Inventory List", 105, 25, { align: "center" });
+
+
+      const tableBody = [];
+      let index = 1;
+      const snapshot = await db.collection("items").orderBy("created", "desc").get();
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (!filterLowStock || data.qty < 10) {
+          tableBody.push([
+            index++,
+            data.partNo || "",
+            data.name || "",
+            data.qty || "",
+            data.size || "",
+            data.location || "",
+            data.desc || ""
+          ]);
+        }
+      });
+
+      doc.autoTable({
+        startY: 35,
+        head: [["S.No","Part No", "Name", "Qty", "Size", "Location", "Description"]],
+        body: tableBody,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [52, 73, 94] },
+        margin: { top: 20 },
+        columnStyles: {
+          0: { cellWidth: 12 }, 1: { cellWidth: 35 }, 2: { cellWidth: 40 },
+          3: { cellWidth: 12 }, 4: { cellWidth: 25 },
+          5: { cellWidth: 30 }, 6: { cellWidth: 35 }
+        }
+      });
+
+      const fileName = filterLowStock ? "low_stock_list.pdf" : "full_inventory_list.pdf";
+      doc.save(fileName);
+      toggleExportDropdown();
+    }
+
+    window.history.pushState(null, null, window.location.href);
+    window.onpopstate = function () {
+      window.history.pushState(null, null, window.location.href);
+    };
+
+    window.onload = () => {
+      loadItems();
+    };
+  </script>
+</body>
+</html>
